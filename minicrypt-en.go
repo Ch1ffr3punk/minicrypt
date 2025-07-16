@@ -134,7 +134,7 @@ func loadPrivateKey() (*memguard.LockedBuffer, error) {
 	}
 	pemData, err := os.ReadFile(filepath.Join(configDir, "private.pem"))
 	if err != nil {
-		return nil, fmt.Errorf("private.pem could not be read: %v", err)
+		return nil, fmt.Errorf("private.pem could not be read")
 	}
 	block, _ := pem.Decode(pemData)
 	if block == nil || block.Type != "PRIVATE KEY" {
@@ -146,14 +146,14 @@ func loadPrivateKey() (*memguard.LockedBuffer, error) {
 func loadPublicKey(name string) (*memguard.LockedBuffer, error) {
 	keyPath, err := getKeyPath(name)
 	if err != nil {
-		return nil, fmt.Errorf("key path could not be determined: %v", err)
+		return nil, fmt.Errorf("key path could not be determined")
 	}
 	pemData, err := os.ReadFile(keyPath)
 	if err != nil {
-		return nil, fmt.Errorf("file could not be read: %v", err)
+		return nil, fmt.Errorf("file could not be read")
 	}
 	if err := validatePublicKey(string(pemData)); err != nil {
-		return nil, fmt.Errorf("validation failed: %v", err)
+		return nil, fmt.Errorf("validation failed")
 	}
 	block, _ := pem.Decode(pemData)
 	return memguard.NewBufferFromBytes(block.Bytes), nil
@@ -208,20 +208,20 @@ func encrypt(pubKey *memguard.LockedBuffer, r io.Reader, w io.Writer) error {
 	}
 	data, err := io.ReadAll(r)
 	if err != nil {
-		return fmt.Errorf("data could not be read: %v", err)
+		return fmt.Errorf("data could not be read")
 	}
 	secureData := memguard.NewBufferFromBytes(data)
 	defer secureData.Destroy()
 
 	curvePub, err := ed25519PublicKeyToCurve25519(pubKey)
 	if err != nil {
-		return fmt.Errorf("key conversion failed: %v", err)
+		return fmt.Errorf("key conversion failed")
 	}
 	defer curvePub.Destroy()
 
 	edPub, edPriv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		return fmt.Errorf("temporary key pair could not be generated: %v", err)
+		return fmt.Errorf("temporary key pair could not be generated")
 	}
 	ephPriv := memguard.NewBufferFromBytes(edPriv)
 	ephPub := memguard.NewBufferFromBytes(edPub)
@@ -230,32 +230,32 @@ func encrypt(pubKey *memguard.LockedBuffer, r io.Reader, w io.Writer) error {
 
 	curveEphPriv, err := ed25519PrivateKeyToCurve25519(ephPriv)
 	if err != nil {
-		return fmt.Errorf("ephemeral private key conversion failed: %v", err)
+		return fmt.Errorf("ephemeral private key conversion failed")
 	}
 	defer curveEphPriv.Destroy()
 
 	curveEphPub, err := ed25519PublicKeyToCurve25519(ephPub)
 	if err != nil {
-		return fmt.Errorf("ephemeral public key conversion failed: %v", err)
+		return fmt.Errorf("ephemeral public key conversion failed")
 	}
 	defer curveEphPub.Destroy()
 
 	sharedSecret, err := curve25519.X25519(curveEphPriv.Bytes(), curvePub.Bytes())
 	if err != nil {
-		return fmt.Errorf("key exchange failed: %v", err)
+		return fmt.Errorf("key exchange failed")
 	}
 	secureSecret := memguard.NewBufferFromBytes(sharedSecret)
 	defer secureSecret.Destroy()
 
 	aead, err := chacha20poly1305.NewX(secureSecret.Bytes())
 	if err != nil {
-		return fmt.Errorf("encryption algorithm could not be initialized: %v", err)
+		return fmt.Errorf("encryption algorithm could not be initialized")
 	}
 
 	nonce := memguard.NewBuffer(aead.NonceSize())
 	defer nonce.Destroy()
 	if _, err := rand.Read(nonce.Bytes()); err != nil {
-		return fmt.Errorf("nonce could not be generated: %v", err)
+		return fmt.Errorf("nonce could not be generated")
 	}
 
 	ciphertext := aead.Seal(nil, nonce.Bytes(), secureData.Bytes(), nil)
@@ -546,7 +546,7 @@ func chunk64(s string) string {
 func keyPairExists() (bool, error) {
 	configDir, err := getConfigDir()
 	if err != nil {
-		return false, fmt.Errorf("config directory could not be determined: %v", err)
+		return false, fmt.Errorf("config directory could not be determined")
 	}
 	privateKeyPath := filepath.Join(configDir, "private.pem")
 	publicKeyPath := filepath.Join(configDir, "public.pem")
@@ -555,14 +555,14 @@ func keyPairExists() (bool, error) {
 	if _, err := os.Stat(privateKeyPath); err == nil {
 		privateExists = true
 	} else if !os.IsNotExist(err) {
-		return false, fmt.Errorf("error checking %s: %v", privateKeyPath, err)
+		return false, fmt.Errorf("error checking %s: %v", err)
 	}
 
 	publicExists := false
 	if _, err := os.Stat(publicKeyPath); err == nil {
 		publicExists = true
 	} else if !os.IsNotExist(err) {
-		return false, fmt.Errorf("error checking %s: %v", publicKeyPath, err)
+		return false, fmt.Errorf("error checking %s: %v", err)
 	}
 
 	return privateExists && publicExists, nil
@@ -620,22 +620,22 @@ func processDUV(r io.Reader, w io.Writer) error {
     var decryptBuffer bytes.Buffer
     privKey, err := loadPrivateKey()
     if err != nil {
-        return fmt.Errorf("private key could not be loaded: %v", err)
+        return fmt.Errorf("private key could not be loaded")
     }
     defer privKey.Destroy()
 
     if err := decrypt(privKey, r, &decryptBuffer); err != nil {
-        return fmt.Errorf("decryption failed: %v", err)
+        return fmt.Errorf("decryption failed")
     }
 
     unpaddedReader, err := unpad(bytes.NewReader(decryptBuffer.Bytes()))
     if err != nil {
-        return fmt.Errorf("unpadding failed: %v", err)
+        return fmt.Errorf("unpadding failed")
     }
 
     var verifyBuffer bytes.Buffer
     if _, err := io.Copy(&verifyBuffer, unpaddedReader); err != nil {
-        return fmt.Errorf("data could not be copied to buffer: %v", err)
+        return fmt.Errorf("data could not be copied to buffer")
     }
 
     data := bytes.ReplaceAll(verifyBuffer.Bytes(), []byte("\r\n"), []byte("\n"))
@@ -645,11 +645,11 @@ func processDUV(r io.Reader, w io.Writer) error {
     defer secureBuffer.Destroy()
 
     if _, err := w.Write(secureBuffer.Bytes()); err != nil {
-        return fmt.Errorf("decrypted plaintext could not be written: %v", err)
+        return fmt.Errorf("decrypted plaintext could not be written")
     }
 
     if err := verifyMessage(bytes.NewReader(secureBuffer.Bytes()), w); err != nil {
-        return fmt.Errorf("verification failed: %v", err)
+        return fmt.Errorf("verification failed")
     }
 
     return nil
@@ -662,7 +662,7 @@ func isCanvasEmpty(text string) bool {
 func savePublicKey(name, content string) error {
 	configDir, err := getConfigDir()
 	if err != nil {
-		return fmt.Errorf("config directory could not be determined: %v", err)
+		return fmt.Errorf("config directory could not be determined")
 	}
 	keyPath := filepath.Join(configDir, name+".pem")
 	return os.WriteFile(keyPath, []byte(content), 0600)
@@ -705,7 +705,7 @@ func updateStatus(msg string) {
 func getKeyPath(name string) (string, error) {
 	configDir, err := getConfigDir()
 	if err != nil {
-		return "", fmt.Errorf("config directory could not be determined: %v", err)
+		return "", fmt.Errorf("config directory could not be determined")
 	}
 	keyFileName := fmt.Sprintf("%s.pem", name)
 	keyPath := filepath.Join(configDir, keyFileName)
@@ -1233,7 +1233,7 @@ generateKeypairBtn := widget.NewButton("Generate Keypair", func() {
 		if err != nil {
 			fyne.CurrentApp().SendNotification(&fyne.Notification{
 				Title:   "Error",
-				Content: fmt.Sprintf("Check failed: %v", err),
+				Content: fmt.Sprintf("Check failed"),
 			})
 			updateStatus(fmt.Sprintf("Error: %v", err))
 			return
@@ -1342,7 +1342,7 @@ generateKeypairBtn := widget.NewButton("Generate Keypair", func() {
 			if err != nil {
 				fyne.CurrentApp().SendNotification(&fyne.Notification{
 					Title:   "Error",
-					Content: fmt.Sprintf("Configuration directory not found: %v", err),
+					Content: fmt.Sprintf("Configuration directory not found"),
 				})
 				return
 			}
@@ -1350,7 +1350,7 @@ generateKeypairBtn := widget.NewButton("Generate Keypair", func() {
 			if err := os.WriteFile(filepath.Join(configDir, "private.pem"), privPEM, 0600); err != nil {
 				fyne.CurrentApp().SendNotification(&fyne.Notification{
 					Title:   "Error",
-					Content: fmt.Sprintf("Could not save private key: %v", err),
+					Content: fmt.Sprintf("Could not save private key"),
 				})
 				return
 			}
@@ -1358,7 +1358,7 @@ generateKeypairBtn := widget.NewButton("Generate Keypair", func() {
 			if err := os.WriteFile(filepath.Join(configDir, "public.pem"), pubPEM, 0600); err != nil {
 				fyne.CurrentApp().SendNotification(&fyne.Notification{
 					Title:   "Error",
-					Content: fmt.Sprintf("Could not save public key: %v", err),
+					Content: fmt.Sprintf("Could not save public key"),
 				})
 				return
 			}
