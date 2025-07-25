@@ -349,7 +349,7 @@ func signMessage(keyPath string, r io.Reader, w io.Writer) error {
     
     data = []byte(strings.ToValidUTF8(string(data), ""))
     
-    if bytes.HasSuffix(data, []byte("\r\n")) {
+    for bytes.HasSuffix(data, []byte("\r\n")) {
         data = data[:len(data)-2]
     }
     
